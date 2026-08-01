@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Деберц — Счетчик Очков и Аналитика</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Canvas Confetti for Victory -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            cardinal: '#E63946',
+            accent: '#3B82F6',
+            gold: '#F59E0B',
+            emeraldCustom: '#10B981',
+            darkBg: '#0F172A',
+            panelBg: '#1E293B',
+            borderSubtle: '#334155'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .glow-blue {
+      box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.4);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.4);
+    }
+    .glow-gold {
+      box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.5);
+    }
+  </style>
+</head>
+<body class="min-h-full font-sans antialiased text-slate-100 flex flex-col justify-between">
+
+  <div class="min-h-screen flex flex-col">
+    <!-- Top Navigation Header -->
+    <header class="glass-panel sticky top-0 z-30 border-b border-slate-800 px-4 py-3 sm:px-8">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <!-- Brand / Game Title -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-amber-500 flex items-center justify-center font-display text-xl font-bold text-white shadow-lg shadow-indigo-500/30">
+            ♠
+          </div>
+          <div>
+            <h1 class="font-display font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              Деберц Табло
+            </h1>
+            <p class="text-xs text-slate-400">Интерактивный счетчик и динамика набора очков</p>
+          </div>
+        </div>
+
+        <!-- Target Game Controls & Actions -->
+        <div class="flex flex-wrap items-center justify-center gap-3">
+          <!-- Target Score Selector -->
+          <div class="flex items-center bg-slate-800/80 rounded-lg p-1 border border-slate-700/80 text-xs sm:text-sm">
+            <span class="px-2 text-slate-400 font-medium">Цель:</span>
+            <button onclick="setTargetScore(301)" id="target-301" class="px-2.5 py-1 rounded-md transition font-medium text-slate-300 hover:text-white">301</button>
+            <button onclick="setTargetScore(501)" id="target-501" class="px-2.5 py-1 rounded-md transition font-medium text-slate-300 hover:text-white">501</button>
+            <button onclick="setTargetScore(1001)" id="target-1001" class="px-2.5 py-1 rounded-md transition font-medium text-slate-300 hover:text-white">1001</button>
+            <input type="number" id="custom-target" placeholder="Своя" onchange="setCustomTarget(this.value)" class="w-16 bg-slate-900 border border-slate-700 text-center rounded px-1 py-0.5 text-xs text-amber-400 focus:outline-none focus:border-amber-500 ml-1">
+          </div>
+
+          <!-- Tournament Tour Counter Display Badge -->
+          <div class="flex items-center bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-1 text-xs text-amber-300 font-medium">
+            <span>🏆 Туры: <strong id="top-tour-score" class="font-extrabold text-amber-400 text-sm ml-1">0 : 0</strong></span>
+          </div>
+
+          <!-- Action Buttons -->
+          <button onclick="openSettingsModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Настройки
+          </button>
+
+          <button onclick="confirmResetGame()" class="px-3 py-1.5 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-red-300 hover:text-white text-xs font-semibold border border-red-800/50 transition flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Новая игра
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6 flex-1">
+
+      <!-- Scoreboard Top Dashboard Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+        
+        <!-- Team 1 Card -->
+        <div class="md:col-span-5 glass-panel rounded-2xl p-5 border border-blue-500/20 relative overflow-hidden transition-all duration-300 hover:border-blue-500/40" id="card-team1">
+          <div class="absolute -right-8 -bottom-8 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 rounded-full inline-block shadow-sm transition-colors duration-300" id="team1-color-indicator" style="background-color: #3B82F6;"></span>
+                <input type="text" id="team1-name-input" value="Команда 1" onchange="updateTeamNames()" class="bg-transparent text-lg font-display font-bold text-white hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none rounded px-1.5 py-0.5 border border-transparent focus:border-blue-500 transition max-w-[180px] sm:max-w-[220px]">
+              </div>
+              <p class="text-xs text-slate-400 mt-1 pl-5" id="team1-status-sub">В игре</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30" id="team1-tour-wins">
+                Побед в турах: 0
+              </span>
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700" id="team1-baid-count">
+                Байтов: 0
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-baseline justify-between mt-2">
+            <span class="text-5xl font-display font-extrabold tracking-tight transition-colors duration-300" id="team1-total-score" style="color: #3B82F6;">0</span>
+            <span class="text-sm font-medium text-slate-400" id="team1-target-progress">0% от цели</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-800 rounded-full h-2.5 mt-4 overflow-hidden border border-slate-700/50">
+            <div id="team1-progress-bar" class="h-2.5 rounded-full transition-all duration-500" style="width: 0%; background-color: #3B82F6;"></div>
+          </div>
+        </div>
+
+        <!-- Match Status / VS Indicator -->
+        <div class="md:col-span-2 glass-panel rounded-2xl p-4 flex flex-col items-center justify-center text-center space-y-2 border border-slate-700/50">
+          <span class="text-[11px] uppercase tracking-wider text-amber-400 font-bold" id="tour-round-label">Тур 1 из 5</span>
+          <div class="flex items-center gap-2 my-0.5">
+            <span class="text-2xl font-display font-black text-white" id="tour-score-display">0 : 0</span>
+          </div>
+          <span class="text-xs text-slate-400 font-medium">Раунд <strong class="text-amber-400" id="current-round-num">1</strong></span>
+          <div class="px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300" id="lead-indicator">
+            Ничья
+          </div>
+          <button onclick="startNextTourManual()" id="btn-next-tour" class="hidden mt-1 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] font-extrabold transition shadow">
+            Следующий тур ➔
+          </button>
+        </div>
+
+        <!-- Team 2 Card -->
+        <div class="md:col-span-5 glass-panel rounded-2xl p-5 border border-emeraldCustom/20 relative overflow-hidden transition-all duration-300 hover:border-emeraldCustom/40" id="card-team2">
+          <div class="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+          <div class="flex justify-between items-start mb-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-3.5 h-3.5 rounded-full inline-block shadow-sm transition-colors duration-300" id="team2-color-indicator" style="background-color: #10B981;"></span>
+                <input type="text" id="team2-name-input" value="Команда 2" onchange="updateTeamNames()" class="bg-transparent text-lg font-display font-bold text-white hover:bg-slate-800/60 focus:bg-slate-800 focus:outline-none rounded px-1.5 py-0.5 border border-transparent focus:border-emerald-500 transition max-w-[180px] sm:max-w-[220px]">
+              </div>
+              <p class="text-xs text-slate-400 mt-1 pl-5" id="team2-status-sub">В игре</p>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30" id="team2-tour-wins">
+                Побед в турах: 0
+              </span>
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700" id="team2-baid-count">
+                Байтов: 0
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-baseline justify-between mt-2">
+            <span class="text-5xl font-display font-extrabold tracking-tight transition-colors duration-300" id="team2-total-score" style="color: #10B981;">0</span>
+            <span class="text-sm font-medium text-slate-400" id="team2-target-progress">0% от цели</span>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-800 rounded-full h-2.5 mt-4 overflow-hidden border border-slate-700/50">
+            <div id="team2-progress-bar" class="h-2.5 rounded-full transition-all duration-500" style="width: 0%; background-color: #10B981;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Interactive Round Entry Panel -->
+      <section class="glass-panel rounded-2xl p-5 border border-slate-700/60 shadow-xl">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-700/60">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
+            <h2 class="font-display font-bold text-lg text-white">Ввод результатов раунда</h2>
+          </div>
+        </div>
+
+        <form id="round-form" onsubmit="addRound(event)" class="space-y-4">
+          <!-- Trump & Caller Selection -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Trump Calling Team -->
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Кто заказывал игру?</label>
+              <select id="trump-team" onchange="recalculateRoundScores()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                <option value="team1" id="opt-team1">Команда 1</option>
+                <option value="team2" id="opt-team2">Команда 2</option>
+              </select>
+            </div>
+
+            <!-- Trump Suit -->
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Козырь</label>
+              <div class="grid grid-cols-4 gap-1.5 bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <button type="button" onclick="selectSuit('♠')" id="suit-♠" class="suit-btn py-1 rounded-lg text-lg text-slate-300 hover:bg-slate-700 transition font-bold">♠</button>
+                <button type="button" onclick="selectSuit('♥')" id="suit-♥" class="suit-btn py-1 rounded-lg text-lg text-red-400 hover:bg-slate-700 transition font-bold">♥</button>
+                <button type="button" onclick="selectSuit('♦')" id="suit-♦" class="suit-btn py-1 rounded-lg text-lg text-red-400 hover:bg-slate-700 transition font-bold">♦</button>
+                <button type="button" onclick="selectSuit('♣')" id="suit-♣" class="suit-btn py-1 rounded-lg text-lg text-slate-300 hover:bg-slate-700 transition font-bold">♣</button>
+              </div>
+            </div>
+
+            <!-- Hanging Baid Carryover Notice -->
+            <div id="hanging-baid-banner" class="hidden items-center justify-between p-2.5 bg-amber-950/40 border border-amber-600/40 rounded-xl text-xs text-amber-300">
+              <span>⚠️ Есть висячий байт! Очки прошлого раунда достанутся победителю этого.</span>
+            </div>
+          </div>
+
+          <!-- Direct Score Input Section with Auto-Calculation -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            
+            <!-- Team 1 Inputs -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="team1-score-input" class="text-sm font-semibold transition-colors" id="label-team1-input" style="color: #3B82F6;">
+                  Очки за взятки: Команда 1
+                </label>
+                <span class="text-xs text-slate-400">из 162</span>
+              </div>
+              <div class="relative">
+                <input type="number" id="team1-score-input" placeholder="0" min="0" max="162" oninput="onTeamScoreInput('team1')" class="w-full bg-slate-800 border-2 border-slate-700 focus:border-amber-500 rounded-xl px-4 py-2.5 text-2xl font-display font-extrabold text-white focus:outline-none transition">
+                <span class="absolute right-3 top-3 text-xs text-slate-400 font-mono" id="team1-auto-calc-badge">ввод</span>
+              </div>
+
+              <!-- Combinations Team 1 -->
+              <div class="space-y-1.5 pt-1">
+                <span class="text-xs font-medium text-slate-400">Объявки (<span id="combo-label-team1" class="font-semibold" style="color: #3B82F6;">Команда 1</span>):</span>
+                <div class="flex flex-wrap gap-2 text-xs">
+                  <label class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700/80 px-2.5 py-1 rounded-lg border border-slate-700 cursor-pointer select-none">
+                    <input type="checkbox" id="t1-bella" onchange="recalculateCombinations()" class="rounded text-amber-500 focus:ring-0">
+                    <span>Белла (+20)</span>
+                  </label>
+                  <label class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700/80 px-2.5 py-1 rounded-lg border border-slate-700 cursor-pointer select-none">
+                    <span>Терц (+20):</span>
+                    <input type="number" id="t1-terz" value="0" min="0" max="4" onchange="recalculateCombinations()" class="w-10 bg-slate-900 text-center rounded text-amber-400 font-bold focus:outline-none">
+                  </label>
+                  <label class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700/80 px-2.5 py-1 rounded-lg border border-slate-700 cursor-pointer select-none">
+                    <span>50 (+50):</span>
+                    <input type="number" id="t1-fifty" value="0" min="0" max="2" onchange="recalculateCombinations()" class="w-10 bg-slate-900 text-center rounded text-amber-400 font-bold focus:outline-none">
+                  </label>
+                </div>
+              </div>
+
+              <!-- Live Total Breakdown Team 1 -->
+              <div class="text-xs text-slate-300 font-mono p-2 bg-slate-800/40 rounded-lg border border-slate-800 flex justify-between items-center">
+                <span>Итого раунд:</span>
+                <span class="font-bold text-sm transition-colors" id="team1-calc-total" style="color: #3B82F6;">0</span>
+              </div>
+            </div>
+
+            <!-- Team 2 Inputs -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <label for="team2-score-input" class="text-sm font-semibold transition-colors" id="label-team2-input" style="color: #10B981;">
+                  Очки за взятки: Команда 2
+                </label>
+                <span class="text-xs text-slate-400">из 162</span>
+              </div>
+              <div class="relative">
+                <input type="number" id="team2-score-input" placeholder="0" min="0" max="162" oninput="onTeamScoreInput('team2')" class="w-full bg-slate-800 border-2 border-slate-700 focus:border-amber-500 rounded-xl px-4 py-2.5 text-2xl font-display font-extrabold text-white focus:outline-none transition">
+                <span class="absolute right-3 top-3 text-xs text-slate-400 font-mono" id="team2-auto-calc-badge">авто</span>
+              </div>
+
+              <!-- Combinations Team 2 -->
+              <div class="space-y-1.5 pt-1">
+                <span class="text-xs font-medium text-slate-400">Объявки (<span id="combo-label-team2" class="font-semibold" style="color: #10B981;">Команда 2</span>):</span>
+                <div class="flex flex-wrap gap-2 text-xs">
+                  <label class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700/80 px-2.5 py-1 rounded-lg border border-slate-700 cursor-pointer select-none">
+                    <input type="checkbox" id="t2-bella" onchange="recalculateCombinations()" class="rounded text-amber-500 focus:ring-0">
+                    <span>Белла (+20)</span>
+                  </label>
+                  <label class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700/80 px-2.5 py-1 rounded-lg border border-slate-700 cursor-pointer select-none">
+                    <span>Терц (+20):</span>
+                    <input type="number" id="t2-terz" value="0" min="0" max="4" onchange="recalculateCombinations()" class="w-10 bg-slate-900 text-center rounded text-amber-400 font-bold focus:outline-none">
+                  </label>
+                  <label class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700/80 px-2.5 py-1 rounded-lg border border-slate-700 cursor-pointer select-none">
+                    <span>50 (+50):</span>
+                    <input type="number" id="t2-fifty" value="0" min="0" max="2" onchange="recalculateCombinations()" class="w-10 bg-slate-900 text-center rounded text-amber-400 font-bold focus:outline-none">
+                  </label>
+                </div>
+              </div>
+
+              <!-- Live Total Breakdown Team 2 -->
+              <div class="text-xs text-slate-300 font-mono p-2 bg-slate-800/40 rounded-lg border border-slate-800 flex justify-between items-center">
+                <span>Итого раунд:</span>
+                <span class="font-bold text-sm transition-colors" id="team2-calc-total" style="color: #10B981;">0</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Baid Auto-Detection Banner -->
+          <div id="baid-detection-alert" class="hidden p-3 bg-red-950/60 border border-red-500/50 rounded-xl flex items-center justify-between text-xs text-red-200">
+            <div class="flex items-center gap-2">
+              <span class="text-base">🚨</span>
+              <span id="baid-alert-text">Обнаружен БАЙТ! Играющий не перебрал соперника.</span>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer bg-red-900/60 px-2.5 py-1 rounded-lg border border-red-700">
+              <input type="checkbox" id="override-baid-rule" class="rounded text-red-500">
+              <span>Висячий байт</span>
+            </label>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="submit" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-display font-extrabold text-sm shadow-lg shadow-amber-500/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+              Записать раунд в табло
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Split View: Dynamic Chart & Round Logs Table -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Chart Section (График динамики набора очков) -->
+        <div class="lg:col-span-7 glass-panel rounded-2xl p-5 border border-slate-700/60 flex flex-col justify-between space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+            <div>
+              <h3 class="font-display font-bold text-base text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                Динамика набора очков
+              </h3>
+              <p class="text-xs text-slate-400">Изменение суммы очков по раундам</p>
+            </div>
+            <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded-lg text-xs">
+              <button onclick="setChartType('line')" id="chart-btn-line" class="px-2 py-1 rounded bg-slate-700 text-white font-medium">Накопительный</button>
+              <button onclick="setChartType('diff')" id="chart-btn-diff" class="px-2 py-1 rounded text-slate-400 hover:text-white font-medium">Разница</button>
+            </div>
+          </div>
+
+          <!-- Canvas Container -->
+          <div class="relative w-full h-72 sm:h-80">
+            <canvas id="dynamicsChart"></canvas>
+          </div>
+
+          <!-- Analytics Summary Micro-Stats -->
+          <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800 text-center text-xs">
+            <div class="bg-slate-900/50 p-2 rounded-xl border border-slate-800">
+              <span class="text-slate-400 block text-[10px]">Среднее за раунд</span>
+              <span class="font-bold text-slate-200" id="stat-avg-round">0 / 0</span>
+            </div>
+            <div class="bg-slate-900/50 p-2 rounded-xl border border-slate-800">
+              <span class="text-slate-400 block text-[10px]">Макс. за раунд</span>
+              <span class="font-bold text-amber-400" id="stat-max-round">0</span>
+            </div>
+            <div class="bg-slate-900/50 p-2 rounded-xl border border-slate-800">
+              <span class="text-slate-400 block text-[10px]">Всего раундов</span>
+              <span class="font-bold text-slate-200" id="stat-total-rounds">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scoreboard Logs Table (Табло с набранными очками) -->
+        <div class="lg:col-span-5 glass-panel rounded-2xl p-5 border border-slate-700/60 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-3 mb-3">
+              <h3 class="font-display font-bold text-base text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Табло очков
+              </h3>
+              <button onclick="exportTableData()" class="text-xs text-slate-400 hover:text-amber-400 transition flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Копировать
+              </button>
+            </div>
+
+            <!-- Table Scroll Wrapper -->
+            <div class="overflow-y-auto max-h-80 rounded-xl border border-slate-800">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-800/90 text-slate-300 font-semibold sticky top-0 z-10">
+                  <tr>
+                    <th class="p-2.5 text-center w-10">№</th>
+                    <th class="p-2.5 text-left transition-colors" id="th-team1" style="color: #3B82F6;">Команда 1</th>
+                    <th class="p-2.5 text-left transition-colors" id="th-team2" style="color: #10B981;">Команда 2</th>
+                    <th class="p-2.5 text-center w-12">Козырь</th>
+                    <th class="p-2.5 text-center w-8"></th>
+                  </tr>
+                </thead>
+                <tbody id="score-table-body" class="divide-y divide-slate-800/60 font-mono">
+                  <!-- Empty State -->
+                  <tr id="empty-table-row">
+                    <td colspan="5" class="py-12 text-center text-slate-500 font-sans italic">
+                      Раунды еще не записаны.<br>Введите очки выше, чтобы начать.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Bottom Table Footer with Cumulative Totals -->
+          <div class="pt-3 border-t border-slate-700/60 mt-4 flex justify-between items-center text-xs font-bold font-mono">
+            <span class="text-slate-400 font-sans uppercase tracking-wider">ИТОГО:</span>
+            <div class="flex items-center gap-6">
+              <span class="text-sm font-extrabold transition-colors" id="table-total-team1" style="color: #3B82F6;">0</span>
+              <span class="text-sm font-extrabold transition-colors" id="table-total-team2" style="color: #10B981;">0</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-slate-800 mt-8 py-4 px-6 text-center text-xs text-slate-500">
+      Деберц Табло • Интерактивный подсчет очков с учетом турнирных туров и настраиваемой цветовой гаммой
+    </footer>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl max-w-md w-full p-6 border border-slate-700 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-3">
+        <h3 class="font-display font-bold text-lg text-white">Настройки игры и турнира</h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Team 1 Settings -->
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-300">Команда 1 (Имя и Цвет)</label>
+          <div class="flex items-center gap-2">
+            <input type="color" id="modal-team1-color" class="w-10 h-10 rounded-lg cursor-pointer bg-slate-800 border border-slate-700 p-0.5 shrink-0">
+            <input type="text" id="modal-team1-name" placeholder="Название Команды 1" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+          </div>
+        </div>
+
+        <!-- Team 2 Settings -->
+        <div class="space-y-1.5">
+          <label class="block text-xs font-semibold text-slate-300">Команда 2 (Имя и Цвет)</label>
+          <div class="flex items-center gap-2">
+            <input type="color" id="modal-team2-color" class="w-10 h-10 rounded-lg cursor-pointer bg-slate-800 border border-slate-700 p-0.5 shrink-0">
+            <input type="text" id="modal-team2-name" placeholder="Название Команды 2" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+          </div>
+        </div>
+
+        <!-- Target Score & Tournament Tours -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Цель очков (Тур)</label>
+            <input type="number" id="modal-target-score" min="100" max="5000" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Всего туров в матче</label>
+            <input type="number" id="modal-target-tours" min="1" max="99" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-3 border-t border-slate-700 flex justify-between items-center gap-2">
+        <button onclick="resetTourScores()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition">
+          Сбросить счет туров
+        </button>
+        <div class="flex gap-2">
+          <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 transition">
+            Отмена
+          </button>
+          <button onclick="saveSettings()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition shadow-lg shadow-amber-500/20">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tour Victory Modal -->
+  <div id="tour-winner-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel rounded-2xl max-w-md w-full p-6 border border-amber-500/40 shadow-2xl text-center space-y-4 glow-gold">
+      <div class="text-4xl">🏆</div>
+      <h3 class="font-display font-extrabold text-2xl text-amber-400" id="tour-winner-title">Победа в туре!</h3>
+      <p class="text-sm text-slate-300" id="tour-winner-message">Команда выиграла этот тур.</p>
+      
+      <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-800 text-xs text-slate-400 flex justify-around font-mono">
+        <div>
+          <span>Счет туров:</span>
+          <strong class="text-white block text-sm font-sans mt-0.5" id="tour-modal-score">1 : 0</strong>
+        </div>
+        <div>
+          <span>Следующий тур:</span>
+          <strong class="text-amber-400 block text-sm font-sans mt-0.5" id="tour-modal-next-num">Тур 2</strong>
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button onclick="startNextTourManual()" class="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-display font-extrabold text-sm shadow-lg shadow-amber-500/30 transition transform active:scale-95">
+          Начать следующий тур (Сбросить очки) ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    /* GAME STATE MANAGEMENT */
+    let gameState = {
+      team1Name: 'Команда 1',
+      team2Name: 'Команда 2',
+      team1Color: '#3B82F6', // Blue default
+      team2Color: '#10B981', // Emerald default
+      targetScore: 501,
+      targetTours: 5,        // Default 5 tours tournament
+      team1TourWins: 0,      // Number of tours won by Team 1
+      team2TourWins: 0,      // Number of tours won by Team 2
+      currentTour: 1,        // Current tour index
+      selectedSuit: '♠',
+      activeInputTeam: 'team1',
+      chartMode: 'line',
+      hangingBaidPoints: 0,
+      rounds: []
+    };
+
+    let dynamicsChartInstance = null;
+
+    // Window Load Initialization
+    window.onload = function() {
+      loadGameState();
+      updateUI();
+      initChart();
+      selectSuit('♠');
+    };
+
+    // Save Game State to LocalStorage
+    function saveGameState() {
+      try {
+        localStorage.setItem('debertz_game_state', JSON.stringify(gameState));
+      } catch(e) {
+        console.error('Failed to save to local storage', e);
+      }
+    }
+
+    // Load Game State from LocalStorage
+    function loadGameState() {
+      const saved = localStorage.getItem('debertz_game_state');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          gameState = { ...gameState, ...parsed };
+        } catch(e) {
+          console.error('Error parsing saved state', e);
+        }
+      }
+      
+      // Update Name & Color Inputs
+      document.getElementById('team1-name-input').value = gameState.team1Name;
+      document.getElementById('team2-name-input').value = gameState.team2Name;
+      document.getElementById('custom-target').value = [301, 501, 1001].includes(gameState.targetScore) ? '' : gameState.targetScore;
+      
+      applyTeamColors();
+      updateTargetButtonsUI();
+    }
+
+    // Dynamic Team Colors Handler
+    function applyTeamColors() {
+      const c1 = gameState.team1Color || '#3B82F6';
+      const c2 = gameState.team2Color || '#10B981';
+
+      document.getElementById('team1-color-indicator').style.backgroundColor = c1;
+      document.getElementById('team2-color-indicator').style.backgroundColor = c2;
+      
+      document.getElementById('team1-total-score').style.color = c1;
+      document.getElementById('team2-total-score').style.color = c2;
+
+      document.getElementById('team1-progress-bar').style.backgroundColor = c1;
+      document.getElementById('team2-progress-bar').style.backgroundColor = c2;
+
+      document.getElementById('label-team1-input').style.color = c1;
+      document.getElementById('label-team2-input').style.color = c2;
+
+      document.getElementById('combo-label-team1').style.color = c1;
+      document.getElementById('combo-label-team2').style.color = c2;
+
+      document.getElementById('team1-calc-total').style.color = c1;
+      document.getElementById('team2-calc-total').style.color = c2;
+
+      document.getElementById('th-team1').style.color = c1;
+      document.getElementById('th-team2').style.color = c2;
+
+      document.getElementById('table-total-team1').style.color = c1;
+      document.getElementById('table-total-team2').style.color = c2;
+
+      updateChart();
+    }
+
+    function updateTeamNames() {
+      gameState.team1Name = document.getElementById('team1-name-input').value.trim() || 'Команда 1';
+      gameState.team2Name = document.getElementById('team2-name-input').value.trim() || 'Команда 2';
+      
+      // Update Select, Headers and Combo Labels
+      document.getElementById('opt-team1').textContent = gameState.team1Name;
+      document.getElementById('opt-team2').textContent = gameState.team2Name;
+      document.getElementById('th-team1').textContent = gameState.team1Name;
+      document.getElementById('th-team2').textContent = gameState.team2Name;
+      document.getElementById('label-team1-input').textContent = `Очки: ${gameState.team1Name}`;
+      document.getElementById('label-team2-input').textContent = `Очки: ${gameState.team2Name}`;
+      document.getElementById('combo-label-team1').textContent = gameState.team1Name;
+      document.getElementById('combo-label-team2').textContent = gameState.team2Name;
+
+      saveGameState();
+      updateUI();
+    }
+
+    function setTargetScore(target) {
+      gameState.targetScore = parseInt(target);
+      document.getElementById('custom-target').value = '';
+      updateTargetButtonsUI();
+      saveGameState();
+      updateUI();
+    }
+
+    function setCustomTarget(val) {
+      const num = parseInt(val);
+      if (num && num > 0) {
+        gameState.targetScore = num;
+        updateTargetButtonsUI();
+        saveGameState();
+        updateUI();
+      }
+    }
+
+    function updateTargetButtonsUI() {
+      [301, 501, 1001].forEach(score => {
+        const btn = document.getElementById(`target-${score}`);
+        if (btn) {
+          if (gameState.targetScore === score) {
+            btn.className = 'px-2.5 py-1 rounded-md transition font-bold bg-amber-500 text-slate-950 shadow-sm';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded-md transition font-medium text-slate-300 hover:text-white';
+          }
+        }
+      });
+    }
+
+    function selectSuit(suit) {
+      gameState.selectedSuit = suit;
+      document.querySelectorAll('.suit-btn').forEach(btn => {
+        btn.classList.remove('bg-amber-500', 'text-slate-950', 'ring-2', 'ring-amber-400');
+      });
+      const activeBtn = document.getElementById(`suit-${suit}`);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-amber-500', 'text-slate-950');
+      }
+    }
+
+    // Triggered when user inputs points for Team 1 or Team 2
+    function onTeamScoreInput(activeTeam) {
+      gameState.activeInputTeam = activeTeam;
+      recalculateRoundScores();
+    }
+
+    // Calculates combinations bonus total
+    function getCombosTotal(teamPrefix) {
+      const isBella = document.getElementById(`${teamPrefix}-bella`).checked;
+      const terzCount = parseInt(document.getElementById(`${teamPrefix}-terz`).value) || 0;
+      const fiftyCount = parseInt(document.getElementById(`${teamPrefix}-fifty`).value) || 0;
+
+      return (isBella ? 20 : 0) + (terzCount * 20) + (fiftyCount * 50);
+    }
+
+    function recalculateCombinations() {
+      recalculateRoundScores();
+    }
+
+    // CORE DEBERTZ AUTOMATIC SCORE CALCULATOR (Fixed base card nominal = 162)
+    function recalculateRoundScores() {
+      const BASE_CARDS_NOMINAL = 162;
+
+      const t1Input = document.getElementById('team1-score-input');
+      const t2Input = document.getElementById('team2-score-input');
+
+      let t1Cards = parseInt(t1Input.value);
+      let t2Cards = parseInt(t2Input.value);
+
+      if (gameState.activeInputTeam === 'team1') {
+        if (!isNaN(t1Cards)) {
+          t1Cards = Math.max(0, Math.min(BASE_CARDS_NOMINAL, t1Cards));
+          t2Cards = BASE_CARDS_NOMINAL - t1Cards;
+          t2Input.value = t2Cards;
+          document.getElementById('team1-auto-calc-badge').textContent = 'ввод';
+          document.getElementById('team2-auto-calc-badge').textContent = 'авто';
+        } else {
+          t2Input.value = '';
+          t1Cards = 0;
+          t2Cards = 0;
+        }
+      } else {
+        if (!isNaN(t2Cards)) {
+          t2Cards = Math.max(0, Math.min(BASE_CARDS_NOMINAL, t2Cards));
+          t1Cards = BASE_CARDS_NOMINAL - t2Cards;
+          t1Input.value = t1Cards;
+          document.getElementById('team2-auto-calc-badge').textContent = 'ввод';
+          document.getElementById('team1-auto-calc-badge').textContent = 'авто';
+        } else {
+          t1Input.value = '';
+          t1Cards = 0;
+          t2Cards = 0;
+        }
+      }
+
+      // Add combos individually to each team
+      const t1Combos = getCombosTotal('t1');
+      const t2Combos = getCombosTotal('t2');
+
+      const t1TotalRound = t1Cards + t1Combos;
+      const t2TotalRound = t2Cards + t2Combos;
+
+      document.getElementById('team1-calc-total').textContent = `${t1Cards} (карты) + ${t1Combos} (объявки) = ${t1TotalRound}`;
+      document.getElementById('team2-calc-total').textContent = `${t2Cards} (карты) + ${t2Combos} (объявки) = ${t2TotalRound}`;
+
+      checkBaidCondition(t1TotalRound, t2TotalRound);
+    }
+
+    function checkBaidCondition(t1Total, t2Total) {
+      const trumpTeam = document.getElementById('trump-team').value;
+      
+      const t1Cards = parseInt(document.getElementById('team1-score-input').value) || 0;
+      const t2Cards = parseInt(document.getElementById('team2-score-input').value) || 0;
+      
+      const t1Val = t1Total !== undefined ? t1Total : t1Cards + getCombosTotal('t1');
+      const t2Val = t2Total !== undefined ? t2Total : t2Cards + getCombosTotal('t2');
+
+      const baidAlert = document.getElementById('baid-detection-alert');
+      const baidText = document.getElementById('baid-alert-text');
+
+      let isBaid = false;
+
+      if (trumpTeam === 'team1' && t1Val <= t2Val && (t1Val > 0 || t2Val > 0)) {
+        isBaid = true;
+        const callerName = gameState.team1Name;
+        baidText.textContent = `Байт! ${callerName} набрали (${t1Val}), что не больше оппонента (${t2Val}). Очки достанутся сопернику!`;
+      } else if (trumpTeam === 'team2' && t2Val <= t1Val && (t1Val > 0 || t2Val > 0)) {
+        isBaid = true;
+        const callerName = gameState.team2Name;
+        baidText.textContent = `Байт! ${callerName} набрали (${t2Val}), что не больше оппонента (${t1Val}). Очки достанутся сопернику!`;
+      }
+
+      if (isBaid) {
+        baidAlert.classList.remove('hidden');
+      } else {
+        baidAlert.classList.add('hidden');
+      }
+
+      return isBaid;
+    }
+
+    // Add Round Entry to History
+    function addRound(event) {
+      event.preventDefault();
+
+      const t1Cards = parseInt(document.getElementById('team1-score-input').value);
+      const t2Cards = parseInt(document.getElementById('team2-score-input').value);
+
+      if (isNaN(t1Cards) || isNaN(t2Cards)) {
+        showToast('Пожалуйста, введите очки одной из команд!', 'error');
+        return;
+      }
+
+      const t1Combos = getCombosTotal('t1');
+      const t2Combos = getCombosTotal('t2');
+
+      const t1InputVal = t1Cards + t1Combos;
+      const t2InputVal = t2Cards + t2Combos;
+
+      const trumpTeam = document.getElementById('trump-team').value;
+      const trumpSuit = gameState.selectedSuit;
+      const isBaid = checkBaidCondition(t1InputVal, t2InputVal);
+      const overrideHanging = document.getElementById('override-baid-rule').checked;
+
+      let finalT1Points = t1InputVal;
+      let finalT2Points = t2InputVal;
+
+      let wasHangingBaidThisRound = false;
+
+      if (isBaid) {
+        if (overrideHanging) {
+          wasHangingBaidThisRound = true;
+          if (trumpTeam === 'team1') {
+            gameState.hangingBaidPoints += t1InputVal;
+            finalT1Points = 0;
+          } else {
+            gameState.hangingBaidPoints += t2InputVal;
+            finalT2Points = 0;
+          }
+          showToast('Зафиксирован висячий байт! Очки перенесены на следующий раунд.', 'warning');
+        } else {
+          if (trumpTeam === 'team1') {
+            finalT2Points = t1InputVal + t2InputVal + gameState.hangingBaidPoints;
+            finalT1Points = 0;
+          } else {
+            finalT1Points = t1InputVal + t2InputVal + gameState.hangingBaidPoints;
+            finalT2Points = 0;
+          }
+          gameState.hangingBaidPoints = 0;
+          showToast('Байт зафиксирован! Все очки записаны сопернику.', 'info');
+        }
+      } else {
+        if (gameState.hangingBaidPoints > 0) {
+          if (finalT1Points > finalT2Points) {
+            finalT1Points += gameState.hangingBaidPoints;
+            showToast(`+${gameState.hangingBaidPoints} висячих очков добавлено к ${gameState.team1Name}!`, 'success');
+          } else if (finalT2Points > finalT1Points) {
+            finalT2Points += gameState.hangingBaidPoints;
+            showToast(`+${gameState.hangingBaidPoints} висячих очков добавлено к ${gameState.team2Name}!`, 'success');
+          }
+          gameState.hangingBaidPoints = 0;
+        }
+      }
+
+      const prevT1Cum = gameState.rounds.length > 0 ? gameState.rounds[gameState.rounds.length - 1].t1Cum : 0;
+      const prevT2Cum = gameState.rounds.length > 0 ? gameState.rounds[gameState.rounds.length - 1].t2Cum : 0;
+
+      const newRound = {
+        roundNum: gameState.rounds.length + 1,
+        trumpTeam: trumpTeam,
+        trumpSuit: trumpSuit,
+        t1Points: finalT1Points,
+        t2Points: finalT2Points,
+        t1RawInput: t1InputVal,
+        t2RawInput: t2InputVal,
+        isBaid: isBaid && !overrideHanging,
+        isHangingBaid: wasHangingBaidThisRound,
+        t1Cum: prevT1Cum + finalT1Points,
+        t2Cum: prevT2Cum + finalT2Points
+      };
+
+      gameState.rounds.push(newRound);
+
+      // Reset Form Inputs
+      document.getElementById('team1-score-input').value = '';
+      document.getElementById('team2-score-input').value = '';
+      document.getElementById('t1-bella').checked = false;
+      document.getElementById('t2-bella').checked = false;
+      document.getElementById('t1-terz').value = '0';
+      document.getElementById('t2-terz').value = '0';
+      document.getElementById('t1-fifty').value = '0';
+      document.getElementById('t2-fifty').value = '0';
+      document.getElementById('override-baid-rule').checked = false;
+      document.getElementById('baid-detection-alert').classList.add('hidden');
+      document.getElementById('team1-calc-total').textContent = '0';
+      document.getElementById('team2-calc-total').textContent = '0';
+
+      saveGameState();
+      updateUI();
+      checkWinCondition();
+    }
+
+    function deleteRound(index) {
+      gameState.rounds.splice(index, 1);
+      
+      let runningT1 = 0;
+      let runningT2 = 0;
+      gameState.rounds.forEach((r, idx) => {
+        r.roundNum = idx + 1;
+        runningT1 += r.t1Points;
+        runningT2 += r.t2Points;
+        r.t1Cum = runningT1;
+        r.t2Cum = runningT2;
+      });
+
+      saveGameState();
+      updateUI();
+      showToast('Раунд удален', 'info');
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('dynamicsChart').getContext('2d');
+      const c1 = gameState.team1Color || '#3B82F6';
+      const c2 = gameState.team2Color || '#10B981';
+      
+      dynamicsChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: gameState.team1Name,
+              data: [],
+              borderColor: c1,
+              backgroundColor: c1 + '25',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: c1,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            },
+            {
+              label: gameState.team2Name,
+              data: [],
+              borderColor: c2,
+              backgroundColor: c2 + '25',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: c2,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: {
+                color: '#94A3B8',
+                font: { family: 'Inter', size: 12, weight: 'bold' }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#1E293B',
+              titleColor: '#F8FAFC',
+              bodyColor: '#CBD5E1',
+              borderColor: '#334155',
+              borderWidth: 1,
+              padding: 10,
+              displayColors: true
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(51, 65, 85, 0.4)' },
+              ticks: { color: '#94A3B8', font: { family: 'Inter' } }
+            },
+            y: {
+              grid: { color: 'rgba(51, 65, 85, 0.4)' },
+              ticks: { color: '#94A3B8', font: { family: 'Inter' } }
+            }
+          }
+        }
+      });
+    }
+
+    function setChartType(mode) {
+      gameState.chartMode = mode;
+      document.getElementById('chart-btn-line').className = mode === 'line' ? 'px-2 py-1 rounded bg-slate-700 text-white font-medium' : 'px-2 py-1 rounded text-slate-400 hover:text-white font-medium';
+      document.getElementById('chart-btn-diff').className = mode === 'diff' ? 'px-2 py-1 rounded bg-slate-700 text-white font-medium' : 'px-2 py-1 rounded text-slate-400 hover:text-white font-medium';
+      updateChart();
+    }
+
+    function updateChart() {
+      if (!dynamicsChartInstance) return;
+
+      const labels = ['Старт', ...gameState.rounds.map(r => `Р${r.roundNum}`)];
+      const c1 = gameState.team1Color || '#3B82F6';
+      const c2 = gameState.team2Color || '#10B981';
+
+      if (gameState.chartMode === 'line') {
+        const t1Data = [0, ...gameState.rounds.map(r => r.t1Cum)];
+        const t2Data = [0, ...gameState.rounds.map(r => r.t2Cum)];
+
+        dynamicsChartInstance.data.labels = labels;
+        dynamicsChartInstance.data.datasets = [
+          {
+            label: gameState.team1Name,
+            data: t1Data,
+            borderColor: c1,
+            backgroundColor: c1 + '20',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: c1,
+            pointRadius: 4
+          },
+          {
+            label: gameState.team2Name,
+            data: t2Data,
+            borderColor: c2,
+            backgroundColor: c2 + '20',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: c2,
+            pointRadius: 4
+          }
+        ];
+      } else {
+        const diffData = [0, ...gameState.rounds.map(r => r.t1Cum - r.t2Cum)];
+        dynamicsChartInstance.data.labels = labels;
+        dynamicsChartInstance.data.datasets = [
+          {
+            label: `Разница (${gameState.team1Name} — ${gameState.team2Name})`,
+            data: diffData,
+            borderColor: '#F59E0B',
+            backgroundColor: 'rgba(245, 158, 11, 0.15)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: '#F59E0B',
+            pointRadius: 4
+          }
+        ];
+      }
+
+      dynamicsChartInstance.update();
+    }
+
+    function updateUI() {
+      const totalT1 = gameState.rounds.length > 0 ? gameState.rounds[gameState.rounds.length - 1].t1Cum : 0;
+      const totalT2 = gameState.rounds.length > 0 ? gameState.rounds[gameState.rounds.length - 1].t2Cum : 0;
+
+      // Card Totals
+      document.getElementById('team1-total-score').textContent = totalT1;
+      document.getElementById('team2-total-score').textContent = totalT2;
+      document.getElementById('table-total-team1').textContent = totalT1;
+      document.getElementById('table-total-team2').textContent = totalT2;
+
+      // Tour Scores
+      const w1 = gameState.team1TourWins || 0;
+      const w2 = gameState.team2TourWins || 0;
+      const tTarget = gameState.targetTours || 5;
+
+      document.getElementById('team1-tour-wins').textContent = `Побед в турах: ${w1}`;
+      document.getElementById('team2-tour-wins').textContent = `Побед в турах: ${w2}`;
+      document.getElementById('top-tour-score').textContent = `${w1} : ${w2}`;
+      document.getElementById('tour-score-display').textContent = `${w1} : ${w2}`;
+      document.getElementById('tour-round-label').textContent = `Тур ${gameState.currentTour || 1} из ${tTarget}`;
+
+      // Baid Counters
+      const t1Baids = gameState.rounds.filter(r => r.trumpTeam === 'team1' && (r.isBaid || r.isHangingBaid)).length;
+      const t2Baids = gameState.rounds.filter(r => r.trumpTeam === 'team2' && (r.isBaid || r.isHangingBaid)).length;
+      document.getElementById('team1-baid-count').textContent = `Байтов: ${t1Baids}`;
+      document.getElementById('team2-baid-count').textContent = `Байтов: ${t2Baids}`;
+
+      // Progress Bars
+      const p1Pct = Math.min(100, Math.round((totalT1 / gameState.targetScore) * 100));
+      const p2Pct = Math.min(100, Math.round((totalT2 / gameState.targetScore) * 100));
+      document.getElementById('team1-progress-bar').style.width = `${p1Pct}%`;
+      document.getElementById('team2-progress-bar').style.width = `${p2Pct}%`;
+      document.getElementById('team1-target-progress').textContent = `${p1Pct}% от цели (${gameState.targetScore})`;
+      document.getElementById('team2-target-progress').textContent = `${p2Pct}% от цели (${gameState.targetScore})`;
+
+      // Lead Indicator
+      const diff = Math.abs(totalT1 - totalT2);
+      const leadElem = document.getElementById('lead-indicator');
+      if (totalT1 > totalT2) {
+        leadElem.textContent = `${gameState.team1Name} +${diff}`;
+        leadElem.className = 'px-3 py-1 rounded-full bg-blue-950/80 text-blue-300 border border-blue-800 text-xs font-bold';
+      } else if (totalT2 > totalT1) {
+        leadElem.textContent = `${gameState.team2Name} +${diff}`;
+        leadElem.className = 'px-3 py-1 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800 text-xs font-bold';
+      } else {
+        leadElem.textContent = 'Ничья';
+        leadElem.className = 'px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300';
+      }
+
+      // Round counter
+      document.getElementById('current-round-num').textContent = gameState.rounds.length + 1;
+
+      // Hanging Baid Banner
+      const hangingBanner = document.getElementById('hanging-baid-banner');
+      if (gameState.hangingBaidPoints > 0) {
+        hangingBanner.classList.remove('hidden');
+        hangingBanner.classList.add('flex');
+      } else {
+        hangingBanner.classList.add('hidden');
+        hangingBanner.classList.remove('flex');
+      }
+
+      // Micro Stats
+      document.getElementById('stat-total-rounds').textContent = gameState.rounds.length;
+      if (gameState.rounds.length > 0) {
+        const avgT1 = Math.round(totalT1 / gameState.rounds.length);
+        const avgT2 = Math.round(totalT2 / gameState.rounds.length);
+        document.getElementById('stat-avg-round').textContent = `${avgT1} / ${avgT2}`;
+
+        const maxPoints = Math.max(...gameState.rounds.map(r => Math.max(r.t1Points, r.t2Points)));
+        document.getElementById('stat-max-round').textContent = maxPoints;
+      } else {
+        document.getElementById('stat-avg-round').textContent = '0 / 0';
+        document.getElementById('stat-max-round').textContent = '0';
+      }
+
+      renderScoreTable();
+      updateChart();
+    }
+
+    // Render Table Rows
+    function renderScoreTable() {
+      const tbody = document.getElementById('score-table-body');
+      tbody.innerHTML = '';
+
+      if (gameState.rounds.length === 0) {
+        tbody.innerHTML = `
+          <tr id="empty-table-row">
+            <td colspan="5" class="py-12 text-center text-slate-500 font-sans italic">
+              Раунды еще не записаны.<br>Введите очки выше, чтобы начать.
+            </td>
+          </tr>`;
+        return;
+      }
+
+      const c1 = gameState.team1Color || '#3B82F6';
+      const c2 = gameState.team2Color || '#10B981';
+
+      gameState.rounds.forEach((round, index) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition group';
+
+        const isT1Caller = round.trumpTeam === 'team1';
+        const isT2Caller = round.trumpTeam === 'team2';
+
+        const suitColor = (round.trumpSuit === '♥' || round.trumpSuit === '♦') ? 'text-red-400' : 'text-slate-200';
+
+        let baidBadge = '';
+        if (round.isBaid) {
+          baidBadge = `<span class="ml-1 px-1.5 py-0.5 text-[9px] bg-red-950 text-red-400 rounded border border-red-800">БАЙТ</span>`;
+        } else if (round.isHangingBaid) {
+          baidBadge = `<span class="ml-1 px-1.5 py-0.5 text-[9px] bg-amber-950 text-amber-400 rounded border border-amber-800">ВИСЯЧИЙ</span>`;
+        }
+
+        tr.innerHTML = `
+          <td class="p-2.5 text-center text-slate-400 font-medium">${round.roundNum}</td>
+          <td class="p-2.5 font-bold" style="color: ${isT1Caller ? c1 : '#e2e8f0'}">
+            ${round.t1Points}
+            <span class="text-[10px] text-slate-500 font-normal pl-1">(${round.t1Cum})</span>
+            ${isT1Caller ? '<span class="text-[10px] text-amber-400 ml-1">★</span>' : ''}
+            ${isT1Caller ? baidBadge : ''}
+          </td>
+          <td class="p-2.5 font-bold" style="color: ${isT2Caller ? c2 : '#e2e8f0'}">
+            ${round.t2Points}
+            <span class="text-[10px] text-slate-500 font-normal pl-1">(${round.t2Cum})</span>
+            ${isT2Caller ? '<span class="text-[10px] text-amber-400 ml-1">★</span>' : ''}
+            ${isT2Caller ? baidBadge : ''}
+          </td>
+          <td class="p-2.5 text-center font-bold text-base ${suitColor}">
+            ${round.trumpSuit}
+          </td>
+          <td class="p-2.5 text-center">
+            <button onclick="deleteRound(${index})" class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 transition" title="Удалить раунд">
+              &times;
+            </button>
+          </td>
+        `;
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function checkWinCondition() {
+      if (gameState.rounds.length === 0) return;
+
+      const lastRound = gameState.rounds[gameState.rounds.length - 1];
+      const t1Won = lastRound.t1Cum >= gameState.targetScore;
+      const t2Won = lastRound.t2Cum >= gameState.targetScore;
+
+      if (t1Won || t2Won) {
+        let winnerName = '';
+        if (t1Won && !t2Won) {
+          winnerName = gameState.team1Name;
+          gameState.team1TourWins = (gameState.team1TourWins || 0) + 1;
+        } else if (t2Won && !t1Won) {
+          winnerName = gameState.team2Name;
+          gameState.team2TourWins = (gameState.team2TourWins || 0) + 1;
+        } else {
+          if (lastRound.t1Cum > lastRound.t2Cum) {
+            winnerName = gameState.team1Name;
+            gameState.team1TourWins = (gameState.team1TourWins || 0) + 1;
+          } else {
+            winnerName = gameState.team2Name;
+            gameState.team2TourWins = (gameState.team2TourWins || 0) + 1;
+          }
+        }
+
+        confetti({ particleCount: 150, spread: 80, origin: { y: 0.5 } });
+
+        document.getElementById('btn-next-tour').classList.remove('hidden');
+
+        // Show Tour Winner Modal
+        document.getElementById('tour-winner-title').textContent = `🏆 ${winnerName} побеждают!`;
+        document.getElementById('tour-winner-message').textContent = `${winnerName} первыми набрали целевые ${gameState.targetScore} очков в Туре ${gameState.currentTour}!`;
+        document.getElementById('tour-modal-score').textContent = `${gameState.team1TourWins} : ${gameState.team2TourWins}`;
+        document.getElementById('tour-modal-next-num').textContent = `Тур ${(gameState.currentTour || 1) + 1} из ${gameState.targetTours || 5}`;
+        document.getElementById('tour-winner-modal').classList.remove('hidden');
+
+        saveGameState();
+      }
+    }
+
+    function startNextTourManual() {
+      gameState.currentTour = (gameState.currentTour || 1) + 1;
+      gameState.rounds = [];
+      gameState.hangingBaidPoints = 0;
+      
+      document.getElementById('btn-next-tour').classList.add('hidden');
+      document.getElementById('tour-winner-modal').classList.add('hidden');
+      
+      // Reset input values
+      document.getElementById('team1-score-input').value = '';
+      document.getElementById('team2-score-input').value = '';
+      document.getElementById('team1-calc-total').textContent = '0';
+      document.getElementById('team2-calc-total').textContent = '0';
+
+      saveGameState();
+      updateUI();
+      showToast(`Начат Тур ${gameState.currentTour}! Очки раундов обнулены.`, 'success');
+    }
+
+    function confirmResetGame() {
+      if (gameState.rounds.length === 0 && gameState.team1TourWins === 0 && gameState.team2TourWins === 0) {
+        resetGame();
+        return;
+      }
+      
+      showToast('Нажмите еще раз "Новая игра" в течение 3 сек для подтверждения сброса.', 'warning', 3000);
+      if (window.pendingReset) {
+        resetGame();
+        window.pendingReset = false;
+      } else {
+        window.pendingReset = true;
+        setTimeout(() => { window.pendingReset = false; }, 3000);
+      }
+    }
+
+    function resetGame() {
+      gameState.rounds = [];
+      gameState.hangingBaidPoints = 0;
+      gameState.team1TourWins = 0;
+      gameState.team2TourWins = 0;
+      gameState.currentTour = 1;
+      document.getElementById('btn-next-tour').classList.add('hidden');
+      saveGameState();
+      updateUI();
+      showToast('Начата новая игра и сброшен счет туров!', 'info');
+    }
+
+    function resetTourScores() {
+      gameState.team1TourWins = 0;
+      gameState.team2TourWins = 0;
+      gameState.currentTour = 1;
+      saveGameState();
+      updateUI();
+      showToast('Счет по турам сброшен (0 : 0)', 'info');
+    }
+
+    function exportTableData() {
+      if (gameState.rounds.length === 0) {
+        showToast('Нет данных для копирования', 'warning');
+        return;
+      }
+
+      let text = `Деберц (Тур ${gameState.currentTour}): ${gameState.team1Name} VS ${gameState.team2Name} (Цель: ${gameState.targetScore})\n`;
+      text += `Счет по турам: ${gameState.team1TourWins || 0} : ${gameState.team2TourWins || 0}\n`;
+      text += `№\t${gameState.team1Name}\t${gameState.team2Name}\tКозырь\n`;
+      gameState.rounds.forEach(r => {
+        text += `${r.roundNum}\t${r.t1Points} (${r.t1Cum})\t${r.t2Points} (${r.t2Cum})\t${r.trumpSuit}\n`;
+      });
+      text += `ИТОГО:\t${gameState.rounds[gameState.rounds.length - 1].t1Cum}\t${gameState.rounds[gameState.rounds.length - 1].t2Cum}`;
+
+      navigator.clipboard ? navigator.clipboard.writeText(text) : document.execCommand('copy');
+      showToast('Результаты скопированы в буфер обмена!', 'success');
+    }
+
+    /* Settings Modal Controls */
+    function openSettingsModal() {
+      document.getElementById('modal-team1-name').value = gameState.team1Name;
+      document.getElementById('modal-team2-name').value = gameState.team2Name;
+      document.getElementById('modal-team1-color').value = gameState.team1Color || '#3B82F6';
+      document.getElementById('modal-team2-color').value = gameState.team2Color || '#10B981';
+      document.getElementById('modal-target-score').value = gameState.targetScore;
+      document.getElementById('modal-target-tours').value = gameState.targetTours || 5;
+      document.getElementById('settings-modal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.add('hidden');
+    }
+
+    function saveSettings() {
+      const t1 = document.getElementById('modal-team1-name').value.trim();
+      const t2 = document.getElementById('modal-team2-name').value.trim();
+      const c1 = document.getElementById('modal-team1-color').value;
+      const c2 = document.getElementById('modal-team2-color').value;
+      const target = parseInt(document.getElementById('modal-target-score').value);
+      const targetTours = parseInt(document.getElementById('modal-target-tours').value);
+
+      if (t1) gameState.team1Name = t1;
+      if (t2) gameState.team2Name = t2;
+      if (c1) gameState.team1Color = c1;
+      if (c2) gameState.team2Color = c2;
+      if (target && target > 0) gameState.targetScore = target;
+      if (targetTours && targetTours > 0) gameState.targetTours = targetTours;
+
+      document.getElementById('team1-name-input').value = gameState.team1Name;
+      document.getElementById('team2-name-input').value = gameState.team2Name;
+
+      updateTeamNames();
+      applyTeamColors();
+      updateTargetButtonsUI();
+      closeSettingsModal();
+      showToast('Настройки обновлены', 'success');
+    }
+
+    /* Toast Notification Helper */
+    function showToast(message, type = 'info', duration = 3500) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      let bg = 'bg-slate-800 border-slate-700 text-white';
+      if (type === 'success') bg = 'bg-emerald-950 border-emerald-600 text-emerald-200';
+      if (type === 'warning') bg = 'bg-amber-950 border-amber-600 text-amber-200';
+      if (type === 'error') bg = 'bg-red-950 border-red-600 text-red-200';
+
+      toast.className = `px-4 py-3 rounded-xl border shadow-2xl text-xs font-semibold pointer-events-auto transform transition-all duration-300 translate-y-2 ${bg}`;
+      toast.textContent = message;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-4');
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+  </script>
+</body>
+</html>
